@@ -14,15 +14,36 @@ import type { ContextualRunResponse, TraceStepStatus } from "@/lib/contextual/ty
 
 const NAV_STATUS = [
   { label: "Session 01" },
-  { label: "Sources Linked", tone: "green" as const, active: true },
-  { label: "Consent Bound", tone: "green" as const },
+  { label: "Evidence Linked", tone: "green" as const, active: true },
+  { label: "Privacy Kept", tone: "green" as const },
 ]
 
 const HERO_CHIPS = [
-  { label: "Build", value: "0.4.2 — Alpha" },
-  { label: "Mode", value: "Read · trace · bridge" },
-  { label: "Context", value: "12 sources linked" },
-  { label: "Engine", value: "contextual.read" },
+  { label: "Build", value: "0.5.0 — Alpha" },
+  { label: "Mode", value: "Evidence-aware mediation" },
+  { label: "Inputs", value: "2 private reads · 1 shared record" },
+  { label: "Output", value: "Gap analysis · repair starters" },
+  { label: "Boundary", value: "No verdicts" },
+]
+
+const TRUST_STRIP = [
+  "Private reflections stay private",
+  "Shared evidence stays cited",
+  "Public context is used only when external facts matter",
+]
+
+const HOW_IT_WORKS_STEPS = [
+  "Each person writes a private reflection",
+  "Paste the shared conversation",
+  "Contextual compares reflection vs evidence",
+  "Review the gap analysis and repair starters",
+]
+
+const PRODUCT_BOUNDARIES = [
+  "Contextual does not decide who is right.",
+  "Private reflections are used as context, not shared content.",
+  "Shared conversation is treated as evidence.",
+  "Public context is only used when external facts matter.",
 ]
 
 type SectionDef = {
@@ -124,6 +145,7 @@ export default function Page() {
   const [personBReflection, setPersonBReflection] = useState('')
   const [sharedEvidence, setSharedEvidence] = useState('')
   const [usePublicContext, setUsePublicContext] = useState(false)
+  const [isMockConnecting, setIsMockConnecting] = useState(false)
 
   // API state
   type ApiState = 'idle' | 'loading' | 'error' | 'success'
@@ -133,6 +155,28 @@ export default function Page() {
 
   // Request cancellation
   const abortControllerRef = useRef<AbortController | null>(null)
+  const mockConnectTimeoutRef = useRef<number | null>(null)
+
+  const hasRequiredInputs =
+    personAReflection.trim().length > 0 && personBReflection.trim().length > 0 && sharedEvidence.trim().length > 0
+
+  const handleMockConnect = useCallback(() => {
+    if (isMockConnecting) return
+
+    setIsMockConnecting(true)
+    mockConnectTimeoutRef.current = window.setTimeout(() => {
+      setSharedEvidence([
+        '[09:12] Alex: Hey, when you saw my message last night and did not reply, I started thinking you were upset with me.',
+        '[09:14] Sam: I was still at work and honestly exhausted. I saw it, but I did not have the energy to answer well.',
+        '[09:16] Alex: I get being tired, but no reply at all made me feel ignored.',
+        '[09:19] Sam: I was not trying to ignore you. I thought a rushed reply would make it worse.',
+        '[09:22] Alex: I would rather get a short heads-up than silence, because silence makes me fill in the blanks.',
+        '[09:25] Sam: That is fair. I heard pressure in the message and shut down instead of saying I needed an hour.',
+      ].join('\n'))
+      setIsMockConnecting(false)
+      mockConnectTimeoutRef.current = null
+    }, 1500)
+  }, [isMockConnecting])
 
   const handleRunAgent = useCallback(async () => {
     setApiState('loading')
@@ -196,6 +240,9 @@ export default function Page() {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
+      if (mockConnectTimeoutRef.current !== null) {
+        window.clearTimeout(mockConnectTimeoutRef.current)
+      }
     }
   }, [])
 
@@ -203,57 +250,133 @@ export default function Page() {
     <div className="min-h-screen bg-background text-foreground selection:bg-foreground selection:text-background">
       <TopNav />
       <Hero />
-      <LineageRail />
       <main className="border-t border-border">
-        {SECTIONS.flatMap((s, i) => {
-          const isLast = i === SECTIONS.length - 1
-          const nodes = [
-            <Section
-              key={`sec-${s.n}`}
-              section={s}
-              isLast={isLast}
-              formInputs={
-                s.kind === 'privacy'
-                  ? {
-                      personAReflection,
-                      setPersonAReflection,
-                      personBReflection,
-                      setPersonBReflection,
-                    }
-                  : undefined
-              }
-              evidenceInput={
-                s.kind === 'transcript'
-                  ? {
-                      sharedEvidence,
-                      setSharedEvidence,
-                    }
-                  : undefined
-              }
-              agentControls={
-                s.kind === 'agent'
-                  ? {
-                      onRun: handleRunAgent,
-                      onReset: handleReset,
-                      state: apiState,
-                      error: apiError,
-                      response: apiResponse,
-                    }
-                  : undefined
-              }
-              publicContextToggle={
-                s.kind === 'agent'
-                  ? {
-                      value: usePublicContext,
-                      onChange: setUsePublicContext,
-                    }
-                  : undefined
-              }
-            />,
-          ]
-          if (!isLast) nodes.push(<SectionInterstitial key={`int-${s.n}`} from={s.n} />)
-          return nodes
-        })}
+        <FlowSection
+          section={{
+            id: 'how',
+            n: '01',
+            label: 'How it works',
+            title: 'See the product flow in one pass.',
+            lede: 'Contextual is easiest to understand when you follow the same path the agent follows: private reflections, shared evidence, comparison, then a repair readout grounded in citations.',
+          }}
+        >
+          {(shown) => <HowItWorksBlock shown={shown} />}
+        </FlowSection>
+
+        <FlowSection
+          section={{
+            id: 'inputs',
+            n: '02',
+            label: 'Inputs',
+            title: 'Bring in the two inputs Contextual compares.',
+            lede: 'Start with two private reflections and one shared conversation record. The reflections stay private. The shared conversation is treated as evidence.',
+          }}
+        >
+          {(shown) => (
+            <TranscriptBlock
+              shown={shown}
+              sharedEvidence={sharedEvidence}
+              setSharedEvidence={setSharedEvidence}
+              isMockConnecting={isMockConnecting}
+              onMockConnect={handleMockConnect}
+            />
+          )}
+        </FlowSection>
+
+        <FlowSection
+          section={{
+            id: 'run',
+            n: '03',
+            label: 'Run Contextual',
+            title: 'Run the mediation read against the current inputs.',
+            lede: 'This step compares the reflections against the shared evidence, decides whether external facts matter, and returns a traceable readout.',
+          }}
+        >
+          {(shown) => (
+            <div className="space-y-4">
+              <PrivacyBoundaryBlock
+                shown={shown}
+                personAReflection={personAReflection}
+                setPersonAReflection={setPersonAReflection}
+                personBReflection={personBReflection}
+                setPersonBReflection={setPersonBReflection}
+              />
+              <AgentBlock
+                shown={shown}
+                onRun={handleRunAgent}
+                onReset={handleReset}
+                state={apiState}
+                error={apiError}
+                response={apiResponse}
+                usePublicContext={usePublicContext}
+                setUsePublicContext={setUsePublicContext}
+                hasRequiredInputs={hasRequiredInputs}
+              />
+            </div>
+          )}
+        </FlowSection>
+
+        <FlowSection
+          section={{
+            id: 'output',
+            n: '04',
+            label: 'Repair output',
+            title: 'Review the repair output before going deeper.',
+            lede: 'Read the concise repair summary first: what the evidence supports, where the conversation drifted, and the draft repair starters for each side.',
+          }}
+        >
+          {(shown) => <RepairOutputBlock shown={shown} response={apiResponse} state={apiState} />}
+        </FlowSection>
+
+        <FlowSection
+          section={{
+            id: 'interpretation',
+            n: '05',
+            label: 'Interpretation gap',
+            title: 'Open the interpretation gap only after the summary makes sense.',
+            lede: 'This is the deeper read. It separates what was said from what was likely heard, then shows the bridge language that could restart the exchange.',
+          }}
+        >
+          {(shown) => <InterpretationGapBlock shown={shown} response={apiResponse} state={apiState} />}
+        </FlowSection>
+
+        {apiState === 'success' && apiResponse && <LineageRail />}
+
+        <FlowSection
+          section={{
+            id: 'privacy',
+            n: '07',
+            label: 'Privacy and consent',
+            title: 'Keep the privacy boundary legible.',
+            lede: 'Contextual is useful only if the boundary between private context and shared evidence remains clear. This section makes that boundary explicit.',
+          }}
+        >
+          {(shown) => <PrivacyAndConsentBlock shown={shown} />}
+        </FlowSection>
+
+        <FlowSection
+          section={{
+            id: 'public',
+            n: '08',
+            label: 'Public context',
+            title: 'Use public context only for external facts.',
+            lede: 'Public context is not a general enrichment layer. It should only enter the run when the disagreement depends on a fact that can be checked outside the conversation itself.',
+          }}
+        >
+          {(shown) => <PublicContextBlock shown={shown} response={apiResponse} usePublicContext={usePublicContext} />}
+        </FlowSection>
+
+        <FlowSection
+          section={{
+            id: 'log',
+            n: '09',
+            label: 'Session log',
+            title: 'Keep the log, but move it to the end.',
+            lede: 'The session log is still part of the system language, but it should follow the main task flow rather than compete with it.',
+          }}
+        >
+          {(shown) => <SessionLogBlock shown={shown} />}
+        </FlowSection>
       </main>
       <Footer />
     </div>
@@ -383,7 +506,7 @@ function Hero() {
               style={{ animationDelay: "120ms" }}
             >
               <span className="text-foreground">I.</span>
-              <span className="hidden md:inline">Cover</span>
+              <span className="hidden md:inline">Overview</span>
               <span aria-hidden className="hidden md:block w-10 ctx-dotted" />
             </div>
           </div>
@@ -395,7 +518,7 @@ function Hero() {
               style={{ animationDelay: "180ms" }}
             >
               <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Contextual / Field manual — context, not vibes
+                Contextual
               </span>
               <span aria-hidden className="ctx-rule hidden md:block" />
               <span className="hidden md:inline-flex font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -407,72 +530,65 @@ function Hero() {
               className="ctx-reveal font-sans text-balance text-[40px] leading-[1.05] tracking-[-0.02em] md:text-[72px] md:leading-[1.02] md:tracking-[-0.025em] text-foreground"
               style={{ animationDelay: "260ms", animationDuration: "780ms" }}
             >
-              An evidence-aware system for reading drift and bridging the interpretation gap.
+              Find where a conversation went off track.
             </h1>
 
             <p
               className="ctx-reveal mt-8 max-w-[44rem] text-pretty text-[15px] md:text-[17px] leading-relaxed text-body"
               style={{ animationDelay: "420ms" }}
             >
-              Contextual reads the actual record — messages, calls, shared documents — and traces the{" "}
-              <DriftMark
-                term="drift"
-                def="The widening distance between what a message intended and what it landed as. Measured against the record, not feelings."
-                cite="see § 02"
-              >
-                drift
-              </DriftMark>{" "}
-              between two people. It doesn&apos;t arbitrate. It cites evidence, surfaces the{" "}
-              <DriftMark
-                term="interpretation gap"
-                def="The space between what was said and what was heard. Mapped as a vector, never a verdict."
-                cite="see § 02.01"
-              >
-                interpretation gap
-              </DriftMark>
-              , and proposes small, reviewable{" "}
-              <DriftMark
-                term="repair path"
-                def="A small, reviewable act of communication that closes a specific gap. Cited to the line of evidence it bridges."
-                cite="see § 03"
-              >
-                repair paths
-              </DriftMark>
-              . Every draft is{" "}
-              <DriftMark
-                term="co-signed"
-                def="Both parties read, redline, and sign the draft before it leaves. Provenance travels with the message."
-                cite="see § 04"
-              >
-                co-signed
-              </DriftMark>{" "}
-              before it is sent.
+              Contextual compares two private reflections with the shared conversation record to show
+              where meaning drifted, what each person likely heard, and how to restart the
+              conversation without deciding who is right.
             </p>
 
-            {/* Operator's kicker — small, inspectable, geeky */}
             <div
-              className="ctx-reveal mt-6 flex flex-wrap items-center gap-x-2 gap-y-2 max-w-[44rem]"
+              className="ctx-reveal mt-8 flex flex-wrap items-center gap-3"
               style={{ animationDelay: "500ms" }}
             >
-              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                {"// operator's note"}
-              </span>
-              <span aria-hidden className="text-border">—</span>
-              <span className="font-mono text-[12px] tracking-tight text-foreground">
-                read.record() · trace.drift() · bridge.gap() · sign.repair()
-              </span>
-              <span aria-hidden className="ctx-caret inline-block h-3 w-1.5 bg-foreground/70 align-[-2px]" />
+              <a
+                href="#section-inputs"
+                className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] bg-foreground text-primary-foreground px-3 py-1.5 rounded-sm transition-[opacity,transform] duration-200 hover:opacity-90 active:translate-y-px"
+              >
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
+                Run a mediation
+              </a>
+              <a
+                href="#section-how"
+                className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] border border-border text-muted-foreground px-3 py-1.5 rounded-sm transition-colors duration-200 hover:text-foreground hover:border-foreground/30"
+              >
+                See how it works
+              </a>
             </div>
 
-            {/* Signal inspector — hoverable plotted moments */}
             <div
-              className="ctx-reveal mt-12 max-w-[48rem]"
+              className="ctx-reveal mt-8 grid gap-2 max-w-[52rem]"
               style={{ animationDelay: "600ms" }}
             >
-              <SignalInspector />
+              <div className="grid gap-2 md:grid-cols-3">
+                {TRUST_STRIP.map((item) => (
+                  <div key={item} className="ctx-corners border border-border rounded-sm bg-card/70 px-3 py-2.5">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="ctx-corners border border-border rounded-sm bg-background/50 px-4 py-3">
+                <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                  Product boundaries
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {PRODUCT_BOUNDARIES.map((item) => (
+                    <div key={item} className="flex items-start gap-2 text-[13px] leading-relaxed text-body">
+                      <span aria-hidden className="mt-2 h-1 w-1 rounded-full bg-foreground/70 shrink-0" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {/* Metadata chips */}
             <dl className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-6 max-w-[48rem] border-t border-border pt-8">
               {HERO_CHIPS.map((c, i) => (
                 <div
@@ -491,6 +607,392 @@ function Hero() {
         </div>
       </div>
     </section>
+  )
+}
+
+type FlowSectionMeta = {
+  id: string
+  n: string
+  label: string
+  title: string
+  lede: string
+}
+
+function FlowSection({
+  section,
+  children,
+  className = "",
+}: {
+  section: FlowSectionMeta
+  children: (shown: boolean) => React.ReactNode
+  className?: string
+}) {
+  const { ref, shown } = useReveal<HTMLDivElement>()
+
+  return (
+    <section id={`section-${section.id}`} className={`border-b border-border ${className}`} aria-labelledby={`heading-${section.id}`}>
+      <div className="mx-auto max-w-[1320px] px-6 md:px-10 py-16 md:py-24">
+        <div ref={ref} className="grid grid-cols-12 gap-x-8 gap-y-10">
+          <div className="col-span-12 md:col-span-2">
+            <div className={`relative md:sticky md:top-24 ${shown ? "ctx-reveal" : "ctx-pre"}`}>
+              <span
+                aria-hidden
+                data-shown={shown}
+                style={{ "--ctx-delay": "180ms" } as React.CSSProperties}
+                className="hidden md:block absolute -left-3 top-0 h-full w-px bg-foreground/30 ctx-trace-y"
+              />
+              <div className="hidden md:flex items-center gap-2 mb-4">
+                <span aria-hidden className="inline-block h-2 w-2 rounded-full border border-foreground/40" />
+                <span aria-hidden className="block h-px w-6 bg-foreground/40" />
+                <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+                  marker
+                </span>
+              </div>
+              <div className="flex md:flex-col items-baseline md:items-start gap-3 md:gap-2">
+                <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  § {section.n}
+                </div>
+                <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-foreground">
+                  {section.label}
+                </div>
+              </div>
+              <div aria-hidden className="hidden md:flex items-center gap-2 mt-3">
+                <span className="block w-12 h-px bg-foreground/40" />
+                <span className="block h-1 w-1 bg-foreground/40" />
+                <span className="block w-6 ctx-dotted" />
+              </div>
+            </div>
+          </div>
+
+          <div className="col-span-12 md:col-span-10">
+            <h2
+              id={`heading-${section.id}`}
+              className={`font-sans text-pretty text-[28px] md:text-[40px] leading-[1.1] tracking-[-0.02em] text-foreground max-w-[42rem] ${
+                shown ? "ctx-reveal" : "ctx-pre"
+              }`}
+              style={{ animationDelay: "80ms" }}
+            >
+              {section.title}
+            </h2>
+            <p
+              className={`mt-5 max-w-[40rem] text-[15px] leading-relaxed text-body ${shown ? "ctx-reveal" : "ctx-pre"}`}
+              style={{ animationDelay: "160ms" }}
+            >
+              {section.lede}
+            </p>
+
+            <div className="mt-10">{children(shown)}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function HowItWorksBlock({ shown }: { shown: boolean }) {
+  const EXAMPLE_ROWS = [
+    { label: "What A thought", value: "B stepping in meant B did not trust A to finish the work." },
+    { label: "What B meant", value: "B thought they were helping and had not realized A saw the work as settled." },
+    { label: "Shared evidence", value: "The thread shows a direct ownership/help mismatch, followed by a defensive reply." },
+    { label: "What Contextual found", value: "The conversation drifted from process into perceived intent before either person checked the other meaning." },
+  ]
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <article
+        className={`ctx-corners border border-border rounded-sm bg-card overflow-hidden ${shown ? "ctx-reveal" : "ctx-pre"}`}
+        style={{ animationDelay: "240ms" }}
+      >
+        <header className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            01.01 / How it works
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            4 steps
+          </span>
+        </header>
+        <ol className="grid md:grid-cols-2">
+          {HOW_IT_WORKS_STEPS.map((step, index) => (
+            <li
+              key={step}
+              className={`px-5 py-4 ${index % 2 === 0 ? "md:border-r" : ""} ${index < 2 ? "border-b" : ""} border-border ${
+                shown ? "ctx-reveal" : "ctx-pre"
+              }`}
+              style={{ animationDelay: `${300 + index * 70}ms` }}
+            >
+              <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                Step {index + 1}
+              </div>
+              <p className="text-[14px] leading-relaxed text-foreground max-w-[32ch]">{step}</p>
+            </li>
+          ))}
+        </ol>
+      </article>
+
+      <article
+        className={`ctx-corners border border-border rounded-sm bg-background/50 overflow-hidden ${shown ? "ctx-reveal" : "ctx-pre"}`}
+        style={{ animationDelay: "320ms" }}
+      >
+        <header className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            01.02 / Example read
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            compact case
+          </span>
+        </header>
+        <div className="px-5 py-2">
+          {EXAMPLE_ROWS.map((row, index) => (
+            <div
+              key={row.label}
+              className={`grid gap-2 py-3 ${index < EXAMPLE_ROWS.length - 1 ? "border-b border-dashed border-border" : ""} ${
+                shown ? "ctx-reveal" : "ctx-pre"
+              }`}
+              style={{ animationDelay: `${380 + index * 60}ms` }}
+            >
+              <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{row.label}</div>
+              <p className="text-[13px] leading-relaxed text-foreground">{row.value}</p>
+            </div>
+          ))}
+        </div>
+      </article>
+    </div>
+  )
+}
+
+function RepairOutputBlock({
+  shown,
+  response,
+  state,
+}: {
+  shown: boolean
+  response: ContextualRunResponse | null
+  state: 'idle' | 'loading' | 'error' | 'success'
+}) {
+  const topEvidence = response?.evidenceHighlights[0]
+  const topUncertainty = response?.uncertainties[0]
+
+  return (
+    <article
+      className={`ctx-corners border border-border rounded-sm bg-card overflow-hidden ${shown ? "ctx-reveal" : "ctx-pre"}`}
+      style={{ animationDelay: "240ms" }}
+    >
+      <header className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          04.01 / Repair output
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          {state === 'success' ? 'ready to review' : state === 'loading' ? 'waiting on run' : 'awaiting inputs'}
+        </span>
+      </header>
+
+      {response ? (
+        <div className="grid gap-0 md:grid-cols-2">
+          <div className="px-5 py-5 border-b md:border-b-0 md:border-r border-border">
+            <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+              What Contextual found
+            </div>
+            <p className="text-[14px] leading-relaxed text-foreground">{response.whatBroke}</p>
+            <div className="mt-4 pt-4 border-t border-dashed border-border">
+              <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                Evidence highlight
+              </div>
+              <p className="text-[13px] leading-relaxed text-foreground">
+                {topEvidence
+                  ? `${topEvidence.citation} · ${topEvidence.observation}`
+                  : 'Shared evidence will appear here once a run completes.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="px-5 py-5">
+            <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+              Repair starters
+            </div>
+            <div className="space-y-3">
+              <div className="p-3 rounded-sm border border-border bg-background/50">
+                <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground mb-1">
+                  Person A
+                </div>
+                <p className="text-[13px] leading-relaxed text-foreground italic">{response.repairStarterA}</p>
+              </div>
+              <div className="p-3 rounded-sm border border-border bg-background/50">
+                <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground mb-1">
+                  Person B
+                </div>
+                <p className="text-[13px] leading-relaxed text-foreground italic">{response.repairStarterB}</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-dashed border-border text-[12px] leading-relaxed text-body">
+              {topUncertainty?.detail ?? 'This section stays cautious and separates evidence from interpretation.'}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="px-5 py-6">
+          <p className="text-[14px] leading-relaxed text-body max-w-[42rem]">
+            After you run Contextual, this section will summarize what the shared record supports,
+            where meaning likely drifted, and two neutral repair starters to review.
+          </p>
+        </div>
+      )}
+    </article>
+  )
+}
+
+function PrivacyAndConsentBlock({ shown }: { shown: boolean }) {
+  return (
+    <article
+      className={`ctx-corners border border-border rounded-sm bg-card overflow-hidden ${shown ? "ctx-reveal" : "ctx-pre"}`}
+      style={{ animationDelay: "240ms" }}
+    >
+      <header className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          07.01 / Privacy and consent
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          boundary · explicit
+        </span>
+      </header>
+      <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+        <div className="px-5 py-5">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-3">
+            Stays private
+          </div>
+          <ul className="space-y-3">
+            {[
+              'Each private reflection is context for the agent, not shared content.',
+              'Working notes and discarded drafts stay on the private side of the boundary.',
+              'The agent should not quote a private reflection back as if it were evidence.',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-2 text-[13px] leading-relaxed text-foreground">
+                <span aria-hidden className="mt-2 h-1 w-1 rounded-full bg-foreground/70 shrink-0" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="px-5 py-5">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-3">
+            Can be reviewed together
+          </div>
+          <ul className="space-y-3">
+            {[
+              'The shared conversation is treated as evidence and cited by line.',
+              'Repair starters are drafts to review, not verdicts to enforce.',
+              'Nothing should leave as a final repair message without clear participant consent.',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-2 text-[13px] leading-relaxed text-foreground">
+                <span aria-hidden className="mt-2 h-1 w-1 rounded-full bg-foreground/70 shrink-0" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function PublicContextBlock({
+  shown,
+  response,
+  usePublicContext,
+}: {
+  shown: boolean
+  response: ContextualRunResponse | null
+  usePublicContext: boolean
+}) {
+  const status = response?.publicContextDecision
+    ? response.publicContextDecision.rationale
+    : usePublicContext
+      ? 'Public context is enabled for the next run, but it should still be used only when the conflict depends on external facts.'
+      : 'Public context is off by default until you explicitly enable it for a run.'
+
+  return (
+    <article
+      className={`ctx-corners border border-border rounded-sm bg-card overflow-hidden ${shown ? "ctx-reveal" : "ctx-pre"}`}
+      style={{ animationDelay: "240ms" }}
+    >
+      <header className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          08.01 / Public context
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          checked only if needed
+        </span>
+      </header>
+      <div className="grid gap-0 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
+        {[
+          {
+            label: 'Use it when',
+            body: 'The disagreement depends on policies, pricing, availability, delays, reviews, or another external fact.',
+          },
+          {
+            label: 'Skip it when',
+            body: 'The conflict is mainly about tone, implication, wording, or what each person inferred from the same exchange.',
+          },
+          {
+            label: 'Current status',
+            body: status,
+          },
+        ].map((item) => (
+          <div key={item.label} className="px-5 py-5">
+            <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+              {item.label}
+            </div>
+            <p className="text-[13px] leading-relaxed text-foreground">{item.body}</p>
+          </div>
+        ))}
+      </div>
+    </article>
+  )
+}
+
+function SessionLogBlock({ shown }: { shown: boolean }) {
+  return (
+    <article
+      className={`ctx-corners border border-border rounded-sm bg-card overflow-hidden ${shown ? "ctx-reveal" : "ctx-pre"}`}
+      style={{ animationDelay: "240ms" }}
+    >
+      <header className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          09.01 / Session log
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          portable summary
+        </span>
+      </header>
+      <div className="grid gap-0 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+        <div className="px-5 py-5">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-3">
+            Current session shape
+          </div>
+          <dl className="grid gap-3">
+            {[
+              ['Artifacts', '1 transcript · 2 reflections · 1 repair readout'],
+              ['Output', 'Gap analysis · repair starters · trace'],
+              ['Export', 'session-01.read.signed'],
+            ].map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[110px_1fr] gap-3 items-baseline">
+                <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</dt>
+                <dd className="font-sans text-[13px] leading-snug text-foreground">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <div className="px-5 py-5">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-3">
+            Review posture
+          </div>
+          <ul className="space-y-3 text-[13px] leading-relaxed text-foreground">
+            <li className="flex items-start gap-2"><span aria-hidden className="mt-2 h-1 w-1 rounded-full bg-foreground/70 shrink-0" /><span>Shared evidence stays cited and line-addressable.</span></li>
+            <li className="flex items-start gap-2"><span aria-hidden className="mt-2 h-1 w-1 rounded-full bg-foreground/70 shrink-0" /><span>Private reflections stay on the private side unless a participant chooses otherwise.</span></li>
+            <li className="flex items-start gap-2"><span aria-hidden className="mt-2 h-1 w-1 rounded-full bg-foreground/70 shrink-0" /><span>Repair language remains reviewable and does not decide who was right.</span></li>
+          </ul>
+        </div>
+      </div>
+    </article>
   )
 }
 
@@ -946,6 +1448,8 @@ function Section({
   evidenceInput?: {
     sharedEvidence: string
     setSharedEvidence: (v: string) => void
+    isMockConnecting?: boolean
+    onMockConnect?: () => void
   }
   agentControls?: {
     onRun: () => Promise<void>
@@ -953,6 +1457,7 @@ function Section({
     state: 'idle' | 'loading' | 'error' | 'success'
     error: string | null
     response: any
+    hasRequiredInputs?: boolean
   }
   publicContextToggle?: {
     value: boolean
@@ -1036,7 +1541,15 @@ function Section({
             {/* Body content */}
             <div className="mt-10">
               {section.kind === "cards" && <CardsBlock section={section} shown={shown} />}
-              {section.kind === "transcript" && evidenceInput && <TranscriptBlock shown={shown} {...evidenceInput} />}
+              {section.kind === "transcript" && evidenceInput && (
+                <TranscriptBlock
+                  shown={shown}
+                  sharedEvidence={evidenceInput.sharedEvidence}
+                  setSharedEvidence={evidenceInput.setSharedEvidence}
+                  isMockConnecting={evidenceInput.isMockConnecting ?? false}
+                  onMockConnect={evidenceInput.onMockConnect ?? (() => {})}
+                />
+              )}
               {section.kind === "agent" && agentControls && publicContextToggle && (
                 <AgentBlock
                   shown={shown}
@@ -1047,9 +1560,16 @@ function Section({
                   response={agentControls.response}
                   usePublicContext={publicContextToggle.value}
                   setUsePublicContext={publicContextToggle.onChange}
+                  hasRequiredInputs={agentControls.hasRequiredInputs ?? true}
                 />
               )}
-              {section.kind === "interpretation" && <InterpretationGapBlock shown={shown} />}
+              {section.kind === "interpretation" && (
+                <InterpretationGapBlock
+                  shown={shown}
+                  response={agentControls?.response ?? null}
+                  state={agentControls?.state ?? 'idle'}
+                />
+              )}
               {section.kind === "privacy" && formInputs && (
                 <PrivacyBoundaryBlock shown={shown} {...formInputs} />
               )}
@@ -1324,10 +1844,14 @@ function TranscriptBlock({
   shown,
   sharedEvidence,
   setSharedEvidence,
+  isMockConnecting,
+  onMockConnect,
 }: {
   shown: boolean
   sharedEvidence: string
   setSharedEvidence: (v: string) => void
+  isMockConnecting: boolean
+  onMockConnect: () => void
 }) {
   const lineCount = sharedEvidence.split('\n').filter((l) => l.trim()).length
 
@@ -1338,7 +1862,7 @@ function TranscriptBlock({
     >
       <header className="flex items-center justify-between gap-3 px-5 py-3 border-b border-border">
         <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          01.01 / Shared evidence — paste conversation
+          02.02 / Shared evidence — paste conversation
         </div>
         <div className="flex items-center gap-2">
           <StatusChip label={lineCount > 0 ? "Linked" : "Empty"} tone={lineCount > 0 ? "green" : undefined} active={lineCount > 0} />
@@ -1351,17 +1875,27 @@ function TranscriptBlock({
       <div className="p-5">
         <div className="flex items-center justify-between mb-3">
           <label htmlFor="evidence-textarea" className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Transcript or conversation text
+            Shared conversation record
           </label>
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            paste · cite · trace
-          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onMockConnect}
+              disabled={isMockConnecting}
+              className="font-mono text-[10px] uppercase tracking-[0.14em] border border-border px-2 py-1 rounded-sm text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/40 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isMockConnecting ? 'Connecting MCP mock...' : 'Connect Slack bot (MCP)'}
+            </button>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              paste · cite · compare
+            </span>
+          </div>
         </div>
         <textarea
           id="evidence-textarea"
           value={sharedEvidence}
           onChange={(e) => setSharedEvidence(e.target.value)}
-          placeholder="Paste the conversation or evidence text here. This will be cited and traced in the repair output."
+          placeholder="Paste the conversation here, or use the MCP mock connect button to auto-fill a linked thread."
           className={`w-full min-h-[300px] px-3 py-2.5 bg-background border border-border rounded-sm font-mono text-[12px] leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/20 resize-none ${
             shown ? "ctx-reveal" : "ctx-pre"
           }`}
@@ -1369,7 +1903,9 @@ function TranscriptBlock({
         />
         <div className="mt-3 flex items-center gap-2 text-[11px] leading-relaxed text-muted-foreground">
           <span aria-hidden className="h-1 w-1 rounded-full bg-muted-foreground" />
-          Verbatim text. Line numbers will be auto-assigned. Citations in output will reference line numbers.
+          {isMockConnecting
+            ? 'Connecting to the local MCP mock server and pulling a shared thread for the demo.'
+            : 'Paste the shared record directly, or let the MCP mock fetch it for the demo. Contextual will assign line numbers and cite them in the output.'}
         </div>
       </div>
     </article>
@@ -1404,6 +1940,7 @@ function AgentBlock({
   response,
   usePublicContext,
   setUsePublicContext,
+  hasRequiredInputs,
 }: {
   shown: boolean
   onRun: () => Promise<void>
@@ -1413,6 +1950,7 @@ function AgentBlock({
   response: ContextualRunResponse | null
   usePublicContext: boolean
   setUsePublicContext: (v: boolean) => void
+  hasRequiredInputs: boolean
 }) {
   const [isRunning, setIsRunning] = useState(false)
 
@@ -1445,7 +1983,7 @@ function AgentBlock({
       <header className="flex items-center justify-between gap-3 px-5 py-3 border-b border-border">
         <div className="flex items-center gap-3">
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            03.01 / Repair — bridge run
+            03.01 / Run Contextual
           </span>
           <RunStatePill state={state === 'loading' ? 'running' : state === 'success' ? 'complete' : 'idle'} />
         </div>
@@ -1454,16 +1992,16 @@ function AgentBlock({
             <button
               type="button"
               onClick={handleRun}
-              disabled={isRunning}
+              disabled={isRunning || !hasRequiredInputs}
               className="group inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] bg-foreground text-primary-foreground px-3 py-1.5 rounded-sm transition-[opacity,transform] duration-200 hover:opacity-90 active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span
-                aria-hidden
-                className="h-1.5 w-1.5 rounded-full bg-primary-foreground transition-transform duration-300 group-hover:scale-110"
-              />
-              Run agent
-            </button>
-          )}
+                <span
+                  aria-hidden
+                  className="h-1.5 w-1.5 rounded-full bg-primary-foreground transition-transform duration-300 group-hover:scale-110"
+                />
+                Run mediation
+              </button>
+            )}
           {(state === 'loading' || state === 'error') && (
             <button
               type="button"
@@ -1504,7 +2042,7 @@ function AgentBlock({
             className="accent-foreground"
           />
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Include public context
+            Check public context if needed
           </span>
         </label>
       </div>
@@ -1553,7 +2091,9 @@ function AgentBlock({
                   Ready to run
                 </div>
                 <p className="text-[13px] leading-relaxed text-body max-w-[28ch] mx-auto">
-                  Enter reflections and evidence above, then click "Run agent" to process.
+                  {hasRequiredInputs
+                    ? 'Reflections and evidence are in place. Run the agent to generate the report.'
+                    : 'Add both private reflections and shared evidence above before you run the agent.'}
                 </p>
               </div>
             </div>
@@ -1597,7 +2137,7 @@ function AgentBlock({
             <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
-                  Consent Status
+                  Run status
                 </div>
                 <p className="text-[13px] leading-relaxed text-green inline-flex items-center gap-1.5">
                   <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-green" />
@@ -1635,7 +2175,7 @@ function AgentBlock({
 
               <div className="border-t border-border pt-3">
                 <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
-                  Bridge Suggestions
+                  Repair starters
                 </div>
                 <div className="space-y-2">
                   <div className="p-2.5 rounded-sm bg-background/60 border border-border/50">
@@ -1808,12 +2348,12 @@ type LineageNode = {
 const LINEAGE: LineageNode[] = [
   {
     phase: "01",
-    label: "Private read",
+    label: "Private reflections",
     scope: "agent only",
     state: "captured",
     shape: "JSON · 1.2 KB",
-    artifacts: ["frame notes (A)", "frame notes (B)", "discarded drafts"],
-    note: "Held in private memory. Never quoted, never shared.",
+    artifacts: ["reflection A", "reflection B", "working notes"],
+    note: "Used as private context. Not quoted back as shared evidence.",
   },
   {
     phase: "02",
@@ -1822,7 +2362,7 @@ const LINEAGE: LineageNode[] = [
     state: "verified",
     shape: "transcript · 412 lines",
     artifacts: ["thread/launch · L98–L244", "redactions · 4", "citations · 12"],
-    note: "Verbatim and signed. Each line resolves to its source.",
+    note: "Treated as evidence. Each line resolves to its source.",
   },
   {
     phase: "03",
@@ -1831,7 +2371,7 @@ const LINEAGE: LineageNode[] = [
     state: "loaded",
     shape: "graph · 3 sources",
     artifacts: ["calendar · launch", "doc · launch-copy.md", "thread · launch"],
-    note: "What both parties can see and reason about together.",
+    note: "Checked only when the disagreement depends on an external fact.",
   },
   {
     phase: "04",
@@ -1844,7 +2384,7 @@ const LINEAGE: LineageNode[] = [
   },
   {
     phase: "05",
-    label: "Repair path",
+    label: "Repair output",
     scope: "co-signed",
     state: "pending",
     shape: "draft · 1 candidate",
@@ -1863,7 +2403,7 @@ function LineageRail() {
     setSelectedId(LINEAGE[next].phase)
   }
   return (
-    <section aria-labelledby="lineage-heading" className="border-t border-border bg-card/40">
+    <section id="section-trace" aria-labelledby="lineage-heading" className="border-b border-border bg-card/40">
       <div className="mx-auto max-w-[1320px] px-6 md:px-10 py-12 md:py-16">
         <div ref={ref} className="grid grid-cols-12 gap-x-8 gap-y-8">
           <div className="col-span-12 md:col-span-2">
@@ -1872,7 +2412,7 @@ function LineageRail() {
                 shown ? "ctx-reveal" : "ctx-pre"
               }`}
             >
-              <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">II.</div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">§ 06</div>
               <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-foreground">Trace</div>
             </div>
           </div>
@@ -1885,7 +2425,7 @@ function LineageRail() {
               }`}
               style={{ animationDelay: "60ms" }}
             >
-              Every artifact has a trace. Every step is readable.
+              See what Contextual used, checked, and drafted.
             </h2>
             <p
               className={`mt-3 max-w-[40rem] text-[14px] leading-relaxed text-body ${
@@ -1893,8 +2433,8 @@ function LineageRail() {
               }`}
               style={{ animationDelay: "140ms" }}
             >
-              The trace below shows how a private read becomes a co-signed repair path — without leaking either
-              party&apos;s frame.
+              The trace below shows what stayed private, what counted as evidence, whether public
+              context was checked, and how the repair output was assembled.
             </p>
 
             {/* Rail */}
@@ -2166,256 +2706,127 @@ const GAP_ROWS: GapRow[] = [
 
 type GapFocus = "all" | "said" | "heard" | "bridge"
 
-function InterpretationGapBlock({ shown }: { shown: boolean }) {
-  const [focus, setFocus] = useState<GapFocus>("all")
+function InterpretationGapBlock({
+  shown,
+  response,
+  state,
+}: {
+  shown: boolean
+  response: ContextualRunResponse | null
+  state: 'idle' | 'loading' | 'error' | 'success'
+}) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
-
-  const focusChips: { id: GapFocus; label: string; hint: string }[] = [
-    { id: "all", label: "All", hint: "show all three reads" },
-    { id: "said", label: "Said", hint: "verbatim only" },
-    { id: "heard", label: "Heard", hint: "received frame only" },
-    { id: "bridge", label: "Bridge", hint: "translation only" },
-  ]
-
-  const dim = (col: "said" | "heard" | "bridge") =>
-    focus === "all" || focus === col ? "ctx-layer" : "ctx-layer ctx-layer-dim"
 
   return (
     <article
       className={`ctx-corners bg-card border border-border rounded-sm overflow-hidden ${shown ? "ctx-reveal" : "ctx-pre"}`}
       style={{ animationDelay: "240ms" }}
     >
-      {/* Header */}
       <header className="flex items-center justify-between gap-3 px-5 py-3 border-b border-border">
         <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          02.01 / Interpretation gap — three-column read
+          05.01 / Interpretation gap
         </div>
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          2 reads · 0 paraphrase
+          {state === 'success' ? `${response?.interpretationGaps.length ?? 0} reads` : 'locked until run'}
         </span>
       </header>
 
-      {/* Cartograph — the same gap, plotted as a signal map */}
-      <DriftCartograph />
-
-      {/* Focus chips — isolate a column to compare states */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 border-b border-border bg-background/40">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground mr-1">
-            focus
-          </span>
-          <div role="tablist" aria-label="Interpretation focus" className="flex items-center gap-1">
-            {focusChips.map((c) => {
-              const active = focus === c.id
+      {state !== 'success' || !response ? (
+        <div className="px-5 py-6">
+          <p className="text-[14px] leading-relaxed text-body max-w-[42rem]">
+            This deeper read stays empty until the agent finishes. After the trace completes, cited interpretation gaps from the API response render here.
+          </p>
+        </div>
+      ) : (
+        <>
+          <ol>
+            {response.interpretationGaps.map((gap, index) => {
+              const isExpanded = expandedRow === gap.id
               return (
-                <button
-                  key={c.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setFocus(c.id)}
-                  className={`font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded-sm border transition-colors ${
-                    active
-                      ? "bg-foreground text-primary-foreground border-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/40"
-                  }`}
+                <li
+                  key={gap.id}
+                  className={`border-b border-border last:border-b-0 ${shown ? 'ctx-reveal' : 'ctx-pre'}`}
+                  style={{ animationDelay: `${320 + index * 120}ms` }}
                 >
-                  {c.label}
-                </button>
+                  <div className="px-5 py-5 grid gap-4 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.1fr)_minmax(0,1fr)]">
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                        {gap.id}
+                      </div>
+                      <h3 className="mt-2 font-sans text-[16px] leading-tight tracking-tight text-foreground">{gap.title}</h3>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRow((cur) => (cur === gap.id ? null : gap.id))}
+                        aria-expanded={isExpanded}
+                        aria-controls={`gap-detail-${gap.id}`}
+                        className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+                      >
+                        <span aria-hidden>{isExpanded ? '▾' : '▸'}</span>
+                        {isExpanded ? 'Collapse details' : 'Open details'}
+                      </button>
+                    </div>
+
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                        Evidence-supported read
+                      </div>
+                      <p className="text-[14px] leading-relaxed text-foreground">{gap.evidence}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {gap.evidenceCitations.map((citation) => (
+                          <span
+                            key={citation}
+                            className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground border border-border rounded-sm px-2 py-1 bg-background/50"
+                          >
+                            {citation}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                        Likely interpretation gap
+                      </div>
+                      <p className="text-[14px] leading-relaxed text-foreground">{gap.interpretation}</p>
+                    </div>
+                  </div>
+
+                  <div
+                    id={`gap-detail-${gap.id}`}
+                    className="ctx-expand"
+                    data-open={isExpanded ? 'true' : 'false'}
+                    aria-hidden={!isExpanded}
+                  >
+                    <div className="border-t border-border bg-background/60 px-5 py-4 grid gap-4 md:grid-cols-2">
+                      <div>
+                        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                          Uncertainty
+                        </div>
+                        <p className="text-[13px] leading-relaxed text-foreground">{gap.uncertainty}</p>
+                      </div>
+                      <div>
+                        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                          Support level
+                        </div>
+                        <p className="text-[13px] leading-relaxed text-foreground">{gap.support}</p>
+                      </div>
+                    </div>
+                  </div>
+                </li>
               )
             })}
-          </div>
-        </div>
-        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-          {focus === "all" ? "compare side by side" : `isolated · ${focus}`}
-        </span>
-      </div>
+          </ol>
 
-      {/* Column headers */}
-      <div className="hidden md:grid grid-cols-[140px_1fr_1fr_1fr] border-b border-border">
-        <div className="px-4 py-3 border-r border-border">
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Reading</span>
-        </div>
-        <div className={`px-4 py-3 border-r border-border ${dim("said")}`}>
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground">What was said</div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mt-1">
-            verbatim · cited
-          </div>
-        </div>
-        <div className={`px-4 py-3 border-r border-border ${dim("heard")}`}>
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground">What was heard</div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mt-1">
-            received frame
-          </div>
-        </div>
-        <div className={`px-4 py-3 ${dim("bridge")}`}>
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground">
-            What likely needed bridging
-          </div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mt-1">
-            drift vector
-          </div>
-        </div>
-      </div>
-
-      {/* Rows */}
-      <ol>
-        {GAP_ROWS.map((row, i) => {
-          const isExpanded = expandedRow === row.id
-          return (
-            <li
-              key={row.id}
-              className={`border-b border-border last:border-b-0 ${shown ? "ctx-reveal" : "ctx-pre"}`}
-              style={{ animationDelay: `${360 + i * 160}ms` }}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-[140px_1fr_1fr_1fr]">
-                {/* Reading label */}
-                <div className="px-4 py-5 md:border-r border-b md:border-b-0 border-border bg-background/40 flex flex-col justify-between gap-3">
-                  <div>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {row.id}
-                    </div>
-                    <div className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em] text-foreground leading-snug">
-                      {row.reading}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedRow((cur) => (cur === row.id ? null : row.id))}
-                    aria-expanded={isExpanded}
-                    aria-controls={`gap-trace-${row.id}`}
-                    className="self-start font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
-                  >
-                    <span aria-hidden>{isExpanded ? "▾" : "▸"}</span>
-                    {isExpanded ? "Collapse" : "↳ trace this read"}
-                  </button>
-                </div>
-
-                {/* Said */}
-                <div className={dim("said")}>
-                  <GapCell
-                    mobileLabel="What was said"
-                    who={row.said.who}
-                    quote={row.said.quote}
-                    meta={row.said.source}
-                    metaLabel="source"
-                    tone="evidence"
-                  />
-                </div>
-
-                {/* Heard */}
-                <div className={dim("heard")}>
-                  <GapCell
-                    mobileLabel="What was heard"
-                    who={row.heard.who}
-                    quote={row.heard.quote}
-                    meta="received frame"
-                    metaLabel="frame"
-                    tone="received"
-                  />
-                </div>
-
-                {/* Translation */}
-                <div className={`px-4 py-5 border-t md:border-t-0 border-border ${dim("bridge")}`}>
-                  <div className="md:hidden font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
-                    What likely needed bridging
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span
-                      aria-hidden
-                      className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber shrink-0"
-                    />
-                    <p className="text-[14px] leading-relaxed text-foreground">{row.translation}</p>
-                  </div>
-                  <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                    drift · mapped
-                  </div>
-                </div>
-              </div>
-
-              {/* Expanded trace — height-animated drawer with staggered children */}
-              <div
-                id={`gap-trace-${row.id}`}
-                className="ctx-expand"
-                data-open={isExpanded ? "true" : "false"}
-                aria-hidden={!isExpanded}
-              >
-                <div>
-                  <div
-                    className="border-t border-border bg-background/60 px-4 md:px-5 py-4 grid grid-cols-1 md:grid-cols-[180px_1fr_1fr] gap-x-6 gap-y-4 ctx-stagger"
-                    style={{ "--ctx-step": "65ms" } as React.CSSProperties}
-                  >
-                    <div
-                      className={`flex flex-col gap-2 ${isExpanded ? "ctx-fade-up" : ""}`}
-                      style={{ "--i": 0 } as React.CSSProperties}
-                    >
-                      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                        trace · {row.id}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 self-start font-mono text-[10px] uppercase tracking-[0.14em] text-amber border border-amber/40 bg-amber-surface/60 px-1.5 py-0.5 rounded-sm">
-                        <span aria-hidden className="h-1 w-1 rounded-full bg-amber" />
-                        {row.trace.driftType}
-                      </span>
-                      <span className="font-mono text-[11px] text-foreground">
-                        specimen · {row.trace.specimen}
-                        <span aria-hidden className="ml-1 text-muted-foreground">↗</span>
-                      </span>
-                    </div>
-
-                    <div
-                      className={isExpanded ? "ctx-fade-up" : ""}
-                      style={{ "--i": 1 } as React.CSSProperties}
-                    >
-                      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
-                        citations
-                      </div>
-                      <ul className="flex flex-col">
-                        {row.trace.citations.map((c, j) => (
-                          <li
-                            key={c}
-                            className={`grid grid-cols-[24px_1fr] items-baseline gap-3 py-1.5 ${
-                              j < row.trace.citations.length - 1 ? "border-b border-dashed border-border" : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground tabular-nums">
-                              {String(j + 1).padStart(2, "0")}
-                            </span>
-                            <span className="font-mono text-[12px] text-foreground">{c}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div
-                      className={isExpanded ? "ctx-fade-up" : ""}
-                      style={{ "--i": 2 } as React.CSSProperties}
-                    >
-                      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
-                        candidate bridge
-                      </div>
-                      <p className="text-[13px] leading-relaxed text-foreground">{`"${row.trace.bridge}"`}</p>
-                      <span className="mt-2 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                        <span aria-hidden className="h-1 w-1 rounded-full bg-muted-foreground" />
-                        draft only · awaits review
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </li>
-          )
-        })}
-      </ol>
-
-      {/* Footer */}
-      <footer className="flex items-center justify-between px-5 py-3 border-t border-border">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          gap surface · 2 drift vectors
-        </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          no paraphrase introduced
-        </span>
-      </footer>
+          <footer className="flex items-center justify-between px-5 py-3 border-t border-border">
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              gap surface · api-backed
+            </span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              evidence and interpretation kept separate
+            </span>
+          </footer>
+        </>
+      )}
     </article>
   )
 }
@@ -2502,10 +2913,10 @@ function PrivacyBoundaryBlock({
       {/* Header */}
       <header className="flex items-center justify-between gap-3 px-5 py-3 border-b border-border">
         <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          04.01 / Private reflections — enter freely
+          02.01 / Private reflections — enter freely
         </div>
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          held in private memory
+          used as context only
         </span>
       </header>
 
@@ -2529,13 +2940,13 @@ function PrivacyBoundaryBlock({
           shown={shown}
           baseDelay={300}
           align="left"
-          eyebrow="Zone A"
-          title="Person A private notes"
-          subtitle="Held in private memory. Never quoted, never shared, never exported."
+          eyebrow="Reflection A"
+          title="Person A private reflection"
+          subtitle="Used as private context only. Not quoted back as shared evidence."
           icon="lock"
           value={personAReflection}
           onChange={setPersonAReflection}
-          placeholder="Enter your private thoughts and concerns about the situation. This is for the agent only."
+          placeholder="What did you think was happening here? What concern, need, or interpretation felt most important from your side?"
         />
 
         {/* Person B reflection */}
@@ -2543,13 +2954,13 @@ function PrivacyBoundaryBlock({
           shown={shown}
           baseDelay={460}
           align="right"
-          eyebrow="Zone B"
-          title="Person B private notes"
-          subtitle="Released only with explicit consent. Cited, signed, and traced on release."
+          eyebrow="Reflection B"
+          title="Person B private reflection"
+          subtitle="Used as private context only. Not quoted back as shared evidence."
           icon="handshake"
           value={personBReflection}
           onChange={setPersonBReflection}
-          placeholder="Enter your private thoughts and concerns about the situation. This is for the agent only."
+          placeholder="What did you mean, what did you hear, and what concern or pressure felt most important from your side?"
         />
       </div>
 
@@ -2563,10 +2974,10 @@ function PrivacyBoundaryBlock({
       {/* Footer */}
       <footer className="flex items-center justify-between px-5 py-3 border-t border-border">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          default · private
+          private by default
         </span>
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          release · requires co-sign
+          used as context · not evidence
         </span>
       </footer>
     </article>
@@ -3385,7 +3796,7 @@ function DriftCartograph() {
 /* ───────────────────────── Cipher Index — decodes the section glyphs ───────────────────────── */
 
 const CIPHER_INDEX: { n: string; name: string; gloss: string }[] = [
-  { n: "00", name: "rupture mark", gloss: "where the conversation broke — bracketed point" },
+  { n: "00", name: "gap mark", gloss: "where the conversation first went off track" },
   { n: "01", name: "registration", gloss: "every line aligns to its source — corner ticks + crosshair" },
   { n: "02", name: "drift vector", gloss: "two frames meeting at origin — opposing arrowheads" },
   { n: "03", name: "forking path", gloss: "branching candidates from a single node" },
@@ -3402,7 +3813,7 @@ function CipherIndex() {
           id="cipher-index-heading"
           className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground"
         >
-          Index of marks — read the ciphers
+          Index of marks
         </h3>
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           {CIPHER_INDEX.length} marks · 0 explained twice
@@ -3452,7 +3863,7 @@ function Footer() {
                 §§
               </div>
               <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-foreground">
-                Colophon
+                System notes
               </div>
               <div aria-hidden className="hidden md:block w-12 ctx-dotted mt-2" />
             </div>
@@ -3474,7 +3885,7 @@ function Footer() {
                   System
                 </div>
                 <ul className="font-mono text-[11px] text-foreground flex flex-col gap-1">
-                  <li>contextual.read · v0.4.2</li>
+                  <li>contextual.read · v0.5.0</li>
                   <li>build · 2026.05.02</li>
                   <li>hash · 0xA42F…91C</li>
                 </ul>
@@ -3507,8 +3918,8 @@ function Footer() {
             <div aria-hidden className="ctx-dotted mt-10" />
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              <span>Contextual / Field manual — context, not vibes</span>
-              <span aria-hidden className="hidden md:inline">↳ read the drift, sign the bridge</span>
+              <span>Contextual / evidence-aware mediation</span>
+              <span aria-hidden className="hidden md:inline">↳ read the record, review the repair</span>
               <span>© 2026</span>
             </div>
           </div>
