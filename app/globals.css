@@ -1,0 +1,425 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Contextual editorial palette */
+  --background: #f6f3ec;
+  --foreground: #171717;
+  --card: #fcfbf8;
+  --card-foreground: #171717;
+  --popover: #fcfbf8;
+  --popover-foreground: #171717;
+  --primary: #171717;
+  --primary-foreground: #fcfbf8;
+  --secondary: #ece7db;
+  --secondary-foreground: #171717;
+  --muted: #ece7db;
+  --muted-foreground: #6b6b6b;
+  --body: #4e4a43;
+  --accent: #6d8f6f;
+  --accent-foreground: #fcfbf8;
+  --amber: #b78a3d;
+  --amber-surface: #f4e7cf;
+  --green: #6d8f6f;
+  --green-surface: #e7ede3;
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: #d9d4c8;
+  --input: #d9d4c8;
+  --ring: #b8b1a1;
+  --chart-1: #6d8f6f;
+  --chart-2: #b78a3d;
+  --chart-3: #4e4a43;
+  --chart-4: #d9d4c8;
+  --chart-5: #6b6b6b;
+  --radius: 0.25rem;
+  --sidebar: #fcfbf8;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #fcfbf8;
+  --sidebar-accent: #ece7db;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #d9d4c8;
+  --sidebar-ring: #b8b1a1;
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-body: var(--body);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-amber: var(--amber);
+  --color-amber-surface: var(--amber-surface);
+  --color-green: var(--green);
+  --color-green-surface: var(--green-surface);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Subtle editorial dot-grid — barely there, only on the page chrome. */
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in oklab, var(--foreground) 10%, transparent) 1px,
+      transparent 0
+    );
+    background-size: 24px 24px;
+    background-position: 0 0;
+  }
+}
+
+/* ───────────────── Editorial system marks ───────────────── */
+@layer utilities {
+  /* Registration crosshairs placed just inside the top corners of a panel. */
+  .ctx-corners {
+    position: relative;
+  }
+  .ctx-corners::before,
+  .ctx-corners::after {
+    content: "";
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    pointer-events: none;
+    background-image:
+      linear-gradient(var(--foreground), var(--foreground)),
+      linear-gradient(var(--foreground), var(--foreground));
+    background-repeat: no-repeat;
+    background-size: 8px 1px, 1px 8px;
+    background-position: center center;
+    opacity: 0.35;
+    z-index: 1;
+  }
+  /* top-left */
+  .ctx-corners::before {
+    top: 6px;
+    left: 6px;
+  }
+  /* top-right */
+  .ctx-corners::after {
+    top: 6px;
+    right: 6px;
+  }
+
+  /* Section header rule: a hairline that extends to the right of a label. */
+  .ctx-rule {
+    height: 1px;
+    background: var(--border);
+    flex: 1 1 auto;
+  }
+
+  /* Dotted divider, used as a decorative interior rule. */
+  .ctx-dotted {
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--border) 0 4px,
+      transparent 4px 8px
+    );
+    height: 1px;
+  }
+
+  /* Vertical dotted rail. */
+  .ctx-dotted-v {
+    background-image: repeating-linear-gradient(
+      0deg,
+      var(--border) 0 4px,
+      transparent 4px 8px
+    );
+    width: 1px;
+  }
+
+  /* Tick ruler — horizontal hairline tick marks. */
+  .ctx-ticks {
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--border) 0 1px,
+      transparent 1px 12px
+    );
+    height: 6px;
+    background-position: 0 100%;
+    background-repeat: repeat-x;
+    background-size: auto 6px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, var(--foreground) 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, var(--foreground) 100%);
+  }
+}
+
+/* ───────────────── Motion ───────────────── */
+@layer utilities {
+  @keyframes ctx-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes ctx-reveal-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes ctx-pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.85);
+    }
+  }
+
+  @keyframes ctx-pulse-ring {
+    0% {
+      opacity: 0.5;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2.4);
+    }
+  }
+
+  @keyframes ctx-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  @keyframes ctx-caret {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* Layered reveal: shorter throw, gentler curve — used for nested detail panes. */
+  @keyframes ctx-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Vertical guide drawing — top-down, used for the section sticky rail trace. */
+  @keyframes ctx-trace-y {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+
+  /* Stroke-dash draw — used for SVG guide lines that emerge on inspect. */
+  @keyframes ctx-stroke-draw {
+    from {
+      stroke-dashoffset: var(--ctx-dash, 200);
+      opacity: 0;
+    }
+    to {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+  }
+
+  /* Initial hidden state before reveal triggers */
+  .ctx-pre {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  .ctx-reveal {
+    animation: ctx-reveal 620ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+  }
+
+  .ctx-fade {
+    animation: ctx-reveal-fade 500ms ease-out both;
+  }
+
+  .ctx-fade-up {
+    animation: ctx-fade-up 380ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+  }
+
+  .ctx-pulse {
+    animation: ctx-pulse-dot 1.8s ease-in-out infinite;
+  }
+
+  .ctx-pulse-ring {
+    animation: ctx-pulse-ring 1.8s ease-out infinite;
+  }
+
+  .ctx-caret {
+    animation: ctx-caret 1s steps(1, end) infinite;
+  }
+
+  /* Stagger system — a parent declares the rhythm, children consume `--i`.
+     Applies a per-child animation-delay derived from `--i` (0..n) and a step
+     duration `--ctx-step` that the parent can override (default 60ms). */
+  .ctx-stagger > * {
+    animation-delay: calc(var(--ctx-step, 60ms) * var(--i, 0));
+  }
+
+  /* Quiet hover lift — 1px translate, 220ms ease. Used on inspectable cards
+     and nodes. Disabled under reduced motion. */
+  .ctx-lift {
+    transition:
+      transform 220ms cubic-bezier(0.2, 0.6, 0.2, 1),
+      border-color 220ms ease-out,
+      background-color 220ms ease-out;
+    will-change: transform;
+  }
+  .ctx-lift:hover,
+  .ctx-lift:focus-visible {
+    transform: translateY(-1px);
+  }
+
+  /* Smooth layer crossfade — used for evidence layer toggles. */
+  .ctx-layer {
+    transition:
+      opacity 280ms ease-out,
+      filter 280ms ease-out;
+  }
+  .ctx-layer-dim {
+    opacity: 0.4;
+    filter: blur(0.3px);
+  }
+
+  /* Click-to-expand drawer — animates height via the grid-row trick.
+     Wrap content in a single child; toggle data-open="true|false". */
+  .ctx-expand {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 320ms cubic-bezier(0.2, 0.6, 0.2, 1);
+  }
+  .ctx-expand > * {
+    overflow: hidden;
+    min-height: 0;
+  }
+  .ctx-expand[data-open="true"] {
+    grid-template-rows: 1fr;
+  }
+
+  /* Vertical trace line — draws top-to-bottom when the parent is in view. */
+  .ctx-trace-y {
+    transform-origin: top;
+    transform: scaleY(0);
+  }
+  .ctx-trace-y[data-shown="true"] {
+    animation: ctx-trace-y 760ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+    animation-delay: var(--ctx-delay, 120ms);
+  }
+
+  /* SVG stroke draw — pair with stroke-dasharray + --ctx-dash. */
+  .ctx-stroke {
+    stroke-dasharray: var(--ctx-dash, 200);
+    animation: ctx-stroke-draw 540ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+    animation-delay: var(--ctx-delay, 0ms);
+  }
+
+  /* Cartograph point — subtle SVG-safe hover (no transform on the <g>). */
+  .ctx-cartopoint {
+    transition: opacity 200ms ease-out;
+  }
+  .ctx-cartopoint:hover,
+  .ctx-cartopoint:focus-visible {
+    outline: none;
+  }
+}
+
+/* Reduced motion: keep things visible, drop animation */
+@media (prefers-reduced-motion: reduce) {
+  .ctx-pre,
+  .ctx-reveal,
+  .ctx-fade,
+  .ctx-fade-up {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .ctx-pulse,
+  .ctx-pulse-ring,
+  .ctx-caret,
+  .ctx-stroke {
+    animation: none !important;
+  }
+  .ctx-trace-y,
+  .ctx-trace-y[data-shown="true"] {
+    transform: scaleY(1) !important;
+    animation: none !important;
+  }
+  .ctx-lift {
+    transition: none !important;
+  }
+  .ctx-lift:hover,
+  .ctx-lift:focus-visible {
+    transform: none !important;
+  }
+  .ctx-layer {
+    transition: none !important;
+  }
+  .ctx-expand {
+    grid-template-rows: 1fr !important;
+    transition: none !important;
+  }
+}
